@@ -83,6 +83,7 @@ public actor LLMCore {
     private(set) var repetitionLookback: Int32
     
     private let maxTokenCount: Int
+    private var batchSize: Int32 { min(Int32(maxTokenCount), 512) }
     private let totalTokenCount: Int
     
     public lazy var newlineToken: Token = llama_vocab_nl(vocab)
@@ -170,10 +171,15 @@ public actor LLMCore {
         var contextParams = llama_context_default_params()
         let processorCount = Int32(ProcessInfo().processorCount)
         contextParams.n_ctx = UInt32(maxTokenCount)
-        contextParams.n_batch = contextParams.n_ctx
+        // FIX(llm-safety): a batch of n_ctx made llama_context::output_reserve
+        // allocate the full 128k-vocab x n_ctx logits buffer and OOM-crashed
+        // on 6 GB iPhones. Our prompts are a few hundred tokens; 512 is ample.
+        contextParams.n_batch = 512
         contextParams.n_threads = processorCount
         contextParams.n_threads_batch = processorCount
-        contextParams.embeddings = true
+        // FIX(llm-safety): embeddings buffer doubles output_reserve's allocation
+        // and this app never calls encode() for embeddings.
+        contextParams.embeddings = false
         self.params = contextParams
         
         guard let context = llama_init_from_model(model, params) else {
@@ -271,11 +277,25 @@ public actor LLMCore {
         }
 
         let newTokens = Array(tokens[reusableCount...])
-        clearBatch()
-        for (i, token) in newTokens.enumerated() {
-            addToBatch(token: token, pos: Int32(reusableCount + i), isLogit: i == newTokens.count - 1)
+        // FIX(llm-safety): decode in <= n_batch chunks; a single oversized
+        // batch trips llama.cpp's output_reserve asserts.
+        var offset = 0
+        while offset < newTokens.count {
+            clearBatch()
+            let end = min(offset + Int(batchSize), newTokens.count)
+            for i in offset..<end {
+                addToBatch(token: newTokens[i],
+                           pos: Int32(reusableCount + i),
+                           isLogit: i == newTokens.count - 1)
+            }
+            let rc = llama_decode(context, batch)
+            guard rc == 0 else {
+                print("[llm-safety] prompt decode failed rc=\(rc) "
+                      + "batch=\(batch.n_tokens) ctx=\(maxTokenCount)")
+                return false
+            }
+            offset = end
         }
-        guard llama_decode(context, batch) == 0 else { return false }
 
         contextTokens = tokens
         currentTokenCount = Int32(tokens.count)

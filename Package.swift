@@ -12,7 +12,6 @@ let package = Package(
         .tvOS(.v16),
         .visionOS(.v1)
     ],
-    swiftLanguageModes: [.v5],
     products: [
         .library(
             name: "LLM",

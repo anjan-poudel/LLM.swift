@@ -1,9 +1,11 @@
-// swift-tools-version: 5.9
+// swift-tools-version: 6.0
+// (bumped from 5.9: SwiftPM 6 rejects 5.9-era macro target declarations)
 import PackageDescription
 import CompilerPluginSupport
 
 let package = Package(
     name: "LLM",
+    swiftLanguageModes: [.v5],
     platforms: [
         .iOS(.v16),
         .macOS(.v13),

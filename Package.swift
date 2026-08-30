@@ -5,7 +5,6 @@ import CompilerPluginSupport
 
 let package = Package(
     name: "LLM",
-    swiftLanguageModes: [.v5],
     platforms: [
         .iOS(.v16),
         .macOS(.v13),
@@ -13,6 +12,7 @@ let package = Package(
         .tvOS(.v16),
         .visionOS(.v1)
     ],
+    swiftLanguageModes: [.v5],
     products: [
         .library(
             name: "LLM",

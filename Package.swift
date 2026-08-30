@@ -19,14 +19,12 @@ let package = Package(
         )
     ],
     dependencies: [
-        .package(url: "https://github.com/apple/swift-syntax.git", from: "602.0.0-latest"),
         .package(url: "https://github.com/apple/swift-testing.git", branch: "main")
     ],
     targets: [
         .binaryTarget(
             name: "llama",
-            url: "https://github.com/ggml-org/llama.cpp/releases/download/b10068/llama-b10068-xcframework.zip",
-            checksum: "5238397dd4ca305c9db537c3ae106948909ba2605e77d2d3463ac2d2ca08cc8a"
+            path: "binary/llama.xcframework"
         ),
         .target(
             name: "LlamaChat",
@@ -40,36 +38,12 @@ let package = Package(
                 .linkedLibrary("c++")
             ]
         ),
-        .macro(
-            name: "LLMMacrosImplementation",
-            dependencies: [
-                .product(name: "SwiftSyntaxMacros", package: "swift-syntax"),
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
-            ],
-            path: "Sources/LLMMacrosImplementation"
-        ),
-        .target(
-            name: "LLMMacros",
-            dependencies: [
-                "LLMMacrosImplementation",
-                .product(name: "SwiftCompilerPlugin", package: "swift-syntax")
-            ],
-            path: "Sources/LLMMacros"
-        ),
         .target(
             name: "LLM",
-            dependencies: ["llama", "LlamaChat", "LLMMacros"],
+            dependencies: ["llama", "LlamaChat"],
             path: "Sources/LLM"
         ),
-        .testTarget(
-            name: "LLMTests",
-            dependencies: [
-                "LLM",
-                "LLMMacros",
-                .product(name: "Testing", package: "swift-testing")
-            ],
-            path: "Tests/LLMTests"
-        )
     ],
+    swiftLanguageModes: [.v5],
     cxxLanguageStandard: .cxx17
 )
